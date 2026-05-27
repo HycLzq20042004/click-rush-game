@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Click Rush</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell">
+    <section class="hud" aria-label="game stats">
+      <div>
+        <span class="label">Score</span>
+        <strong id="score">0</strong>
+      </div>
+      <div>
+        <span class="label">Time</span>
+        <strong><span id="time">30</span>s</strong>
+      </div>
+      <div>
+        <span class="label">Best</span>
+        <strong id="best">0</strong>
+      </div>
+    </section>
+
+    <section class="stage-wrap">
+      <canvas id="game" width="720" height="480" aria-label="Click Rush game area"></canvas>
+      <div id="overlay" class="overlay">
+        <h1>Click Rush</h1>
+        <p>Click the glowing targets before time runs out.</p>
+        <button id="startButton" type="button">Start</button>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="game controls">
+      <button id="restartButton" type="button">Restart</button>
+      <p>Tip: smaller targets are worth more points.</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
