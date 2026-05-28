@@ -6,6 +6,8 @@ const bestEl = document.querySelector("#best");
 const overlay = document.querySelector("#overlay");
 const startButton = document.querySelector("#startButton");
 const restartButton = document.querySelector("#restartButton");
+const leaderboardList = document.querySelector("#leaderboardList");
+const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton");
 
 const game = {
   running: false,
@@ -17,7 +19,64 @@ const game = {
 };
 
 const bestKey = "click-rush-best";
-bestEl.textContent = localStorage.getItem(bestKey) || "0";
+const leaderboardKey = "click-rush-leaderboard";
+
+function getLeaderboard() {
+  try {
+    return JSON.parse(localStorage.getItem(leaderboardKey)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLeaderboard(entries) {
+  localStorage.setItem(leaderboardKey, JSON.stringify(entries));
+}
+
+function updateBestScore() {
+  const scores = getLeaderboard().map((entry) => entry.score);
+  const storedBest = Number(localStorage.getItem(bestKey) || 0);
+  bestEl.textContent = Math.max(storedBest, ...scores, 0);
+}
+
+function renderLeaderboard() {
+  const entries = getLeaderboard();
+  leaderboardList.innerHTML = "";
+
+  if (entries.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "empty-rank";
+    emptyItem.textContent = "No scores yet. Play a round to set the pace.";
+    leaderboardList.appendChild(emptyItem);
+    updateBestScore();
+    return;
+  }
+
+  entries.forEach((entry, index) => {
+    const item = document.createElement("li");
+    item.innerHTML = `<span>#${index + 1} <strong>${entry.score}</strong> pts</span><span>${entry.date}</span>`;
+    leaderboardList.appendChild(item);
+  });
+
+  updateBestScore();
+}
+
+function addLeaderboardEntry(score) {
+  const entry = {
+    score,
+    date: new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  };
+  const entries = [...getLeaderboard(), entry]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+  saveLeaderboard(entries);
+  return entries.findIndex((rankedEntry) => rankedEntry === entry) + 1;
+}
 
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
@@ -66,14 +125,17 @@ function endGame() {
   clearInterval(game.timerId);
   cancelAnimationFrame(game.animationId);
 
+  const rank = addLeaderboardEntry(game.score);
   const best = Number(localStorage.getItem(bestKey) || 0);
   if (game.score > best) {
     localStorage.setItem(bestKey, String(game.score));
-    bestEl.textContent = game.score;
   }
+  renderLeaderboard();
 
   overlay.querySelector("h1").textContent = "Time Up";
-  overlay.querySelector("p").textContent = `Final score: ${game.score}. Try to beat your best.`;
+  overlay.querySelector("p").textContent = rank
+    ? `Final score: ${game.score}. You reached #${rank} on the leaderboard.`
+    : `Final score: ${game.score}. Try to beat your best.`;
   startButton.textContent = "Play Again";
   overlay.classList.remove("hidden");
   draw();
@@ -154,4 +216,11 @@ startButton.addEventListener("click", startGame);
 restartButton.addEventListener("click", startGame);
 canvas.addEventListener("click", clickTarget);
 window.addEventListener("resize", resizeCanvas);
+clearLeaderboardButton.addEventListener("click", () => {
+  localStorage.removeItem(leaderboardKey);
+  localStorage.removeItem(bestKey);
+  renderLeaderboard();
+});
+
+renderLeaderboard();
 resizeCanvas();
