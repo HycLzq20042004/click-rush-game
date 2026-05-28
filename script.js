@@ -8,12 +8,26 @@ const startButton = document.querySelector("#startButton");
 const restartButton = document.querySelector("#restartButton");
 const leaderboardList = document.querySelector("#leaderboardList");
 const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton");
+const bossIcon = document.querySelector("#bossIcon");
+const bossStage = document.querySelector("#bossStage");
+const bossName = document.querySelector("#bossName");
+const bossHealthText = document.querySelector("#bossHealthText");
+const bossHealthFill = document.querySelector("#bossHealthFill");
+
+const bosses = [
+  { name: "Scarlet Fox", icon: "🦊", maxHp: 420 },
+  { name: "Moss Bear", icon: "🐻", maxHp: 720 },
+  { name: "Thunder Tiger", icon: "🐯", maxHp: 1050 },
+];
 
 const game = {
   running: false,
   score: 0,
   timeLeft: 30,
   target: null,
+  bossIndex: 0,
+  bossHp: bosses[0].maxHp,
+  bossesDefeated: 0,
   timerId: null,
   animationId: null,
 };
@@ -78,6 +92,55 @@ function addLeaderboardEntry(score) {
   return entries.findIndex((rankedEntry) => rankedEntry === entry) + 1;
 }
 
+function currentBoss() {
+  return bosses[Math.min(game.bossIndex, bosses.length - 1)];
+}
+
+function renderBoss() {
+  const boss = currentBoss();
+  const hp = Math.max(0, game.bossHp);
+  const hpPercent = boss ? (hp / boss.maxHp) * 100 : 0;
+
+  bossIcon.textContent = game.bossIndex >= bosses.length ? "KO" : boss.icon;
+  bossStage.textContent = game.bossIndex >= bosses.length
+    ? "All clear"
+    : `Boss ${game.bossIndex + 1} / ${bosses.length}`;
+  bossName.textContent = game.bossIndex >= bosses.length ? "Boss Rush Cleared" : boss.name;
+  bossHealthText.textContent = game.bossIndex >= bosses.length
+    ? `${game.bossesDefeated} defeated`
+    : `${hp} / ${boss.maxHp} HP`;
+  bossHealthFill.style.width = `${Math.max(0, Math.min(100, hpPercent))}%`;
+}
+
+function resetBosses() {
+  game.bossIndex = 0;
+  game.bossesDefeated = 0;
+  game.bossHp = bosses[0].maxHp;
+  renderBoss();
+}
+
+function damageBoss(points) {
+  if (game.bossIndex >= bosses.length) return;
+
+  const damage = Math.max(14, Math.round(points * 1.8));
+  game.bossHp = Math.max(0, game.bossHp - damage);
+  bossIcon.classList.add("hit");
+  setTimeout(() => bossIcon.classList.remove("hit"), 120);
+
+  if (game.bossHp === 0) {
+    game.bossesDefeated += 1;
+    game.score += 75 + game.bossIndex * 50;
+    scoreEl.textContent = game.score;
+    game.bossIndex += 1;
+
+    if (game.bossIndex < bosses.length) {
+      game.bossHp = bosses[game.bossIndex].maxHp;
+    }
+  }
+
+  renderBoss();
+}
+
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
@@ -107,6 +170,7 @@ function startGame() {
   game.score = 0;
   game.timeLeft = 30;
   game.target = randomTarget();
+  resetBosses();
   scoreEl.textContent = game.score;
   timeEl.textContent = game.timeLeft;
   overlay.classList.add("hidden");
@@ -134,7 +198,7 @@ function endGame() {
 
   overlay.querySelector("h1").textContent = "Time Up";
   overlay.querySelector("p").textContent = rank
-    ? `Final score: ${game.score}. You reached #${rank} on the leaderboard.`
+    ? `Final score: ${game.score}. Bosses defeated: ${game.bossesDefeated}. You reached #${rank}.`
     : `Final score: ${game.score}. Try to beat your best.`;
   startButton.textContent = "Play Again";
   overlay.classList.remove("hidden");
@@ -204,6 +268,7 @@ function clickTarget(event) {
   if (distance <= game.target.radius) {
     const points = Math.max(1, Math.round(55 - game.target.radius));
     game.score += points;
+    damageBoss(points);
     scoreEl.textContent = game.score;
     game.target = randomTarget();
   } else {
@@ -223,4 +288,5 @@ clearLeaderboardButton.addEventListener("click", () => {
 });
 
 renderLeaderboard();
+renderBoss();
 resizeCanvas();
