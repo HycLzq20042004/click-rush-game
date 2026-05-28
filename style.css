@@ -250,8 +250,24 @@ input {
   color: #365243;
 }
 
+.boss-icon.rabbit {
+  color: #9a5573;
+}
+
+.boss-icon.panda {
+  color: #172033;
+}
+
 .boss-icon.tiger {
   color: #a34b12;
+}
+
+.boss-icon.monkey {
+  color: #8d5a25;
+}
+
+.boss-icon.lion {
+  color: #b7791f;
 }
 
 .boss-icon.cleared {

@@ -7,6 +7,7 @@ const overlay = document.querySelector("#overlay");
 const startButton = document.querySelector("#startButton");
 const restartButton = document.querySelector("#restartButton");
 const leaderboardList = document.querySelector("#leaderboardList");
+const leaderboardTitle = document.querySelector("#leaderboardTitle");
 const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton");
 const playerNameInput = document.querySelector("#playerNameInput");
 const soundToggle = document.querySelector("#soundToggle");
@@ -58,11 +59,31 @@ const difficulties = {
   },
 };
 
-const bosses = [
-  { name: "Scarlet Fox", icon: "FOX", baseHp: 360, className: "fox" },
-  { name: "Moss Bear", icon: "BEAR", baseHp: 620, className: "bear" },
-  { name: "Thunder Tiger", icon: "TIGER", baseHp: 900, className: "tiger" },
-];
+const bossRosters = {
+  easy: [
+    { name: "Swift Rabbit", icon: "\u{1F430}", baseHp: 240, className: "rabbit" },
+    { name: "Scarlet Fox", icon: "\u{1F98A}", baseHp: 300, className: "fox" },
+    { name: "Moss Bear", icon: "\u{1F43B}", baseHp: 420, className: "bear" },
+    { name: "Moon Panda", icon: "\u{1F43C}", baseHp: 520, className: "panda" },
+    { name: "Thunder Tiger", icon: "\u{1F42F}", baseHp: 650, className: "tiger" },
+  ],
+  normal: [
+    { name: "Scarlet Fox", icon: "\u{1F98A}", baseHp: 360, className: "fox" },
+    { name: "Moss Bear", icon: "\u{1F43B}", baseHp: 560, className: "bear" },
+    { name: "Moon Panda", icon: "\u{1F43C}", baseHp: 720, className: "panda" },
+    { name: "Thunder Tiger", icon: "\u{1F42F}", baseHp: 900, className: "tiger" },
+    { name: "Jungle Monkey", icon: "\u{1F435}", baseHp: 1060, className: "monkey" },
+    { name: "Crown Lion", icon: "\u{1F981}", baseHp: 1250, className: "lion" },
+  ],
+  hard: [
+    { name: "Scarlet Fox", icon: "\u{1F98A}", baseHp: 450, className: "fox" },
+    { name: "Moss Bear", icon: "\u{1F43B}", baseHp: 700, className: "bear" },
+    { name: "Thunder Tiger", icon: "\u{1F42F}", baseHp: 980, className: "tiger" },
+    { name: "Jungle Monkey", icon: "\u{1F435}", baseHp: 1180, className: "monkey" },
+    { name: "Crown Lion", icon: "\u{1F981}", baseHp: 1420, className: "lion" },
+    { name: "Moon Panda", icon: "\u{1F43C}", baseHp: 1680, className: "panda" },
+  ],
+};
 
 const game = {
   running: false,
@@ -91,31 +112,45 @@ function getDifficulty() {
   return difficulties[game.difficulty];
 }
 
+function getBosses() {
+  return bossRosters[game.difficulty] || bossRosters.normal;
+}
+
+function bestStorageKey() {
+  return `${bestKey}-${game.difficulty}`;
+}
+
+function leaderboardStorageKey() {
+  return `${leaderboardKey}-${game.difficulty}`;
+}
+
 function bossMaxHp(index = game.bossIndex) {
+  const bosses = getBosses();
   const boss = bosses[Math.min(index, bosses.length - 1)];
   return Math.round(boss.baseHp * getDifficulty().hpMultiplier);
 }
 
 function getLeaderboard() {
   try {
-    return JSON.parse(localStorage.getItem(leaderboardKey)) || [];
+    return JSON.parse(localStorage.getItem(leaderboardStorageKey())) || [];
   } catch {
     return [];
   }
 }
 
 function saveLeaderboard(entries) {
-  localStorage.setItem(leaderboardKey, JSON.stringify(entries));
+  localStorage.setItem(leaderboardStorageKey(), JSON.stringify(entries));
 }
 
 function updateBestScore() {
   const scores = getLeaderboard().map((entry) => entry.score);
-  const storedBest = Number(localStorage.getItem(bestKey) || 0);
+  const storedBest = Number(localStorage.getItem(bestStorageKey()) || 0);
   bestEl.textContent = Math.max(storedBest, ...scores, 0);
 }
 
 function renderLeaderboard() {
   const entries = getLeaderboard();
+  leaderboardTitle.textContent = `${getDifficulty().label} Leaderboard`;
   leaderboardList.innerHTML = "";
 
   if (entries.length === 0) {
@@ -160,10 +195,12 @@ function addLeaderboardEntry(score) {
 }
 
 function currentBoss() {
+  const bosses = getBosses();
   return bosses[Math.min(game.bossIndex, bosses.length - 1)];
 }
 
 function renderBoss() {
+  const bosses = getBosses();
   const boss = currentBoss();
   const hp = Math.max(0, game.bossHp);
   const maxHp = bossMaxHp();
@@ -203,6 +240,7 @@ function showBossDamage(damage) {
 }
 
 function damageBoss(points) {
+  const bosses = getBosses();
   if (game.bossIndex >= bosses.length) return;
 
   const comboBoost = Math.min(0.75, game.combo * 0.04);
@@ -243,6 +281,7 @@ function setDifficulty(difficulty) {
     game.timeLeft = getDifficulty().duration;
     timeEl.textContent = game.timeLeft;
     resetBosses();
+    renderLeaderboard();
   }
 }
 
@@ -329,6 +368,7 @@ function startGame() {
 }
 
 function renderResults(rank) {
+  const bosses = getBosses();
   resultPlayer.textContent = game.playerName;
   resultScore.textContent = game.score;
   resultBosses.textContent = `${game.bossesDefeated} / ${bosses.length}`;
@@ -350,9 +390,9 @@ function endGame() {
   cancelAnimationFrame(game.animationId);
 
   const rank = addLeaderboardEntry(game.score);
-  const best = Number(localStorage.getItem(bestKey) || 0);
+  const best = Number(localStorage.getItem(bestStorageKey()) || 0);
   if (game.score > best) {
-    localStorage.setItem(bestKey, String(game.score));
+    localStorage.setItem(bestStorageKey(), String(game.score));
   }
   renderLeaderboard();
   renderResults(rank);
@@ -460,8 +500,8 @@ restartButton.addEventListener("click", startGame);
 canvas.addEventListener("click", clickTarget);
 window.addEventListener("resize", resizeCanvas);
 clearLeaderboardButton.addEventListener("click", () => {
-  localStorage.removeItem(leaderboardKey);
-  localStorage.removeItem(bestKey);
+  localStorage.removeItem(leaderboardStorageKey());
+  localStorage.removeItem(bestStorageKey());
   renderLeaderboard();
 });
 soundToggle.addEventListener("change", () => setSoundEnabled(soundToggle.checked));
