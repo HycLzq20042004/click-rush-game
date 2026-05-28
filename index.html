@@ -27,13 +27,54 @@
       <canvas id="game" width="720" height="480" aria-label="Click Rush game area"></canvas>
       <div id="overlay" class="overlay">
         <h1>Click Rush</h1>
-        <p>Click the glowing targets before time runs out.</p>
+        <p>Pick a difficulty, enter your name, and knock down as many bosses as you can.</p>
+        <div class="setup-panel" aria-label="game setup">
+          <label class="field">
+            <span class="label">Player</span>
+            <input id="playerNameInput" maxlength="14" placeholder="Player" autocomplete="off">
+          </label>
+          <div class="field">
+            <span class="label">Difficulty</span>
+            <div class="difficulty-picker" aria-label="difficulty selector">
+              <button class="difficulty-button" type="button" data-difficulty="easy">Easy</button>
+              <button class="difficulty-button active" type="button" data-difficulty="normal">Normal</button>
+              <button class="difficulty-button" type="button" data-difficulty="hard">Hard</button>
+            </div>
+          </div>
+          <label class="sound-toggle">
+            <input id="soundToggle" type="checkbox" checked>
+            <span>Sound effects</span>
+          </label>
+        </div>
+        <div id="resultPanel" class="result-panel hidden" aria-label="round result">
+          <div>
+            <span class="label">Player</span>
+            <strong id="resultPlayer">Player</strong>
+          </div>
+          <div>
+            <span class="label">Score</span>
+            <strong id="resultScore">0</strong>
+          </div>
+          <div>
+            <span class="label">Bosses</span>
+            <strong id="resultBosses">0 / 3</strong>
+          </div>
+          <div>
+            <span class="label">Best Combo</span>
+            <strong id="resultCombo">x0</strong>
+          </div>
+          <div>
+            <span class="label">Difficulty</span>
+            <strong id="resultDifficulty">Normal</strong>
+          </div>
+        </div>
         <button id="startButton" type="button">Start</button>
       </div>
     </section>
 
     <section class="controls" aria-label="game controls">
       <button id="restartButton" type="button">Restart</button>
+      <button id="soundButton" class="ghost-button" type="button">Sound On</button>
       <p>Tip: smaller targets are worth more points.</p>
     </section>
 
@@ -50,6 +91,7 @@
         <div class="boss-health" aria-label="boss health">
           <div id="bossHealthFill" class="boss-health-fill"></div>
         </div>
+        <div id="bossDamageText" class="boss-damage" aria-live="polite"></div>
       </div>
     </section>
 
