@@ -18,6 +18,7 @@ const resultPlayer = document.querySelector("#resultPlayer");
 const resultScore = document.querySelector("#resultScore");
 const resultBosses = document.querySelector("#resultBosses");
 const resultCombo = document.querySelector("#resultCombo");
+const resultTime = document.querySelector("#resultTime");
 const resultDifficulty = document.querySelector("#resultDifficulty");
 const bossIcon = document.querySelector("#bossIcon");
 const bossStage = document.querySelector("#bossStage");
@@ -97,6 +98,8 @@ const game = {
   bossIndex: 0,
   bossHp: 0,
   bossesDefeated: 0,
+  startedAt: 0,
+  clearTime: null,
   timerId: null,
   animationId: null,
   audioContext: null,
@@ -165,12 +168,30 @@ function renderLeaderboard() {
   entries.forEach((entry, index) => {
     const item = document.createElement("li");
     const name = entry.name || "Player";
-    const difficulty = entry.difficulty || "Normal";
-    item.innerHTML = `<span>#${index + 1} <strong>${name}</strong> ${entry.score} pts</span><span>${difficulty} · ${entry.date}</span>`;
+    const isCleared = Number.isFinite(entry.clearTime);
+    const mainResult = isCleared ? `Clear ${formatTime(entry.clearTime)}` : `${entry.score} pts`;
+    item.innerHTML = `<span>#${index + 1} <strong>${name}</strong> ${mainResult}</span><span>${entry.date}</span>`;
     leaderboardList.appendChild(item);
   });
 
   updateBestScore();
+}
+
+function sortLeaderboard(entries) {
+  return entries.sort((a, b) => {
+    const aCleared = Number.isFinite(a.clearTime);
+    const bCleared = Number.isFinite(b.clearTime);
+
+    if (aCleared && bCleared) {
+      return a.clearTime - b.clearTime || b.score - a.score;
+    }
+
+    if (aCleared !== bCleared) {
+      return aCleared ? -1 : 1;
+    }
+
+    return b.score - a.score;
+  });
 }
 
 function addLeaderboardEntry(score) {
@@ -180,6 +201,7 @@ function addLeaderboardEntry(score) {
     difficulty: getDifficulty().label,
     bosses: game.bossesDefeated,
     combo: game.bestCombo,
+    clearTime: game.clearTime,
     date: new Date().toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -187,11 +209,13 @@ function addLeaderboardEntry(score) {
       minute: "2-digit",
     }),
   };
-  const entries = [...getLeaderboard(), entry]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  const entries = sortLeaderboard([...getLeaderboard(), entry]).slice(0, 5);
   saveLeaderboard(entries);
   return entries.findIndex((rankedEntry) => rankedEntry === entry) + 1;
+}
+
+function formatTime(seconds) {
+  return `${seconds.toFixed(1)}s`;
 }
 
 function currentBoss() {
@@ -241,7 +265,7 @@ function showBossDamage(damage) {
 
 function damageBoss(points) {
   const bosses = getBosses();
-  if (game.bossIndex >= bosses.length) return;
+  if (game.bossIndex >= bosses.length) return false;
 
   const comboBoost = Math.min(0.75, game.combo * 0.04);
   const damage = Math.max(12, Math.round(points * getDifficulty().damageMultiplier * (1 + comboBoost)));
@@ -258,10 +282,15 @@ function damageBoss(points) {
 
     if (game.bossIndex < bosses.length) {
       game.bossHp = bossMaxHp(game.bossIndex);
+    } else {
+      renderBoss();
+      endGame("cleared");
+      return true;
     }
   }
 
   renderBoss();
+  return false;
 }
 
 function getPlayerName() {
@@ -349,6 +378,8 @@ function startGame() {
   game.combo = 0;
   game.bestCombo = 0;
   game.timeLeft = getDifficulty().duration;
+  game.startedAt = Date.now();
+  game.clearTime = null;
   game.target = randomTarget();
   localStorage.setItem(playerNameKey, game.playerName);
   resetBosses();
@@ -367,27 +398,34 @@ function startGame() {
   loop();
 }
 
-function renderResults(rank) {
+function renderResults(rank, reason) {
   const bosses = getBosses();
   resultPlayer.textContent = game.playerName;
   resultScore.textContent = game.score;
   resultBosses.textContent = `${game.bossesDefeated} / ${bosses.length}`;
   resultCombo.textContent = `x${game.bestCombo}`;
+  resultTime.textContent = game.clearTime ? formatTime(game.clearTime) : "Not cleared";
   resultDifficulty.textContent = getDifficulty().label;
   resultPanel.classList.remove("hidden");
 
-  overlay.querySelector("h1").textContent = rank === 1 ? "New Top Score" : "Time Up";
-  overlay.querySelector("p").textContent = rank
-    ? `${game.playerName}, you reached #${rank} on the local leaderboard.`
-    : `${game.playerName}, try another run to beat your best.`;
+  overlay.querySelector("h1").textContent = reason === "cleared"
+    ? "Boss Rush Cleared"
+    : rank === 1 ? "New Top Score" : "Time Up";
+  overlay.querySelector("p").textContent = game.clearTime
+    ? `${game.playerName}, cleared in ${formatTime(game.clearTime)} and reached #${rank}.`
+    : `${game.playerName}, final score ${game.score}. You reached #${rank}.`;
   startButton.textContent = "Play Again";
 }
 
-function endGame() {
+function endGame(reason = "timeout") {
   if (!game.running) return;
   game.running = false;
   clearInterval(game.timerId);
   cancelAnimationFrame(game.animationId);
+
+  if (reason === "cleared") {
+    game.clearTime = Number(((Date.now() - game.startedAt) / 1000).toFixed(1));
+  }
 
   const rank = addLeaderboardEntry(game.score);
   const best = Number(localStorage.getItem(bestStorageKey()) || 0);
@@ -395,7 +433,7 @@ function endGame() {
     localStorage.setItem(bestStorageKey(), String(game.score));
   }
   renderLeaderboard();
-  renderResults(rank);
+  renderResults(rank, reason);
   overlay.classList.remove("hidden");
   draw();
 }
@@ -476,8 +514,9 @@ function clickTarget(event) {
     game.combo += 1;
     game.bestCombo = Math.max(game.bestCombo, game.combo);
     game.score += points;
-    damageBoss(points);
+    const cleared = damageBoss(points);
     scoreEl.textContent = game.score;
+    if (cleared) return;
     game.target = randomTarget();
   } else {
     game.combo = 0;
