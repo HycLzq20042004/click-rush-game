@@ -179,6 +179,18 @@ input {
   min-height: 18px;
 }
 
+.pk-connect {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+}
+
+.helper-text {
+  color: #dbe5f2;
+  font-size: 13px;
+  text-align: left;
+}
+
 .result-panel {
   grid-template-columns: repeat(6, 1fr);
   gap: 8px;
@@ -212,6 +224,46 @@ input {
 
 .controls p {
   margin: 0;
+}
+
+.opponent-panel {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(23, 32, 51, 0.08);
+}
+
+.opponent-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.opponent-heading h2 {
+  margin: 2px 0 0;
+  font-size: 22px;
+}
+
+.opponent-heading strong {
+  color: var(--teal);
+}
+
+.opponent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.opponent-grid > div {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px 12px;
 }
 
 .boss-panel {
@@ -426,8 +478,15 @@ input {
   }
 
   .difficulty-picker,
+  .pk-connect,
+  .opponent-grid,
   .result-panel {
     grid-template-columns: 1fr;
+  }
+
+  .opponent-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .boss-panel {

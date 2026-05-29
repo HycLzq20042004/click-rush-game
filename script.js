@@ -12,6 +12,16 @@ const clearLeaderboardButton = document.querySelector("#clearLeaderboardButton")
 const playerNameInput = document.querySelector("#playerNameInput");
 const soundToggle = document.querySelector("#soundToggle");
 const soundButton = document.querySelector("#soundButton");
+const pkRoomInput = document.querySelector("#pkRoomInput");
+const connectPkButton = document.querySelector("#connectPkButton");
+const leavePkButton = document.querySelector("#leavePkButton");
+const pkStatus = document.querySelector("#pkStatus");
+const opponentTitle = document.querySelector("#opponentTitle");
+const pkOutcome = document.querySelector("#pkOutcome");
+const opponentName = document.querySelector("#opponentName");
+const opponentScore = document.querySelector("#opponentScore");
+const opponentBosses = document.querySelector("#opponentBosses");
+const opponentTime = document.querySelector("#opponentTime");
 const difficultyButtons = [...document.querySelectorAll("[data-difficulty]")];
 const resultPanel = document.querySelector("#resultPanel");
 const resultPlayer = document.querySelector("#resultPlayer");
@@ -26,6 +36,22 @@ const bossName = document.querySelector("#bossName");
 const bossHealthText = document.querySelector("#bossHealthText");
 const bossHealthFill = document.querySelector("#bossHealthFill");
 const bossDamageText = document.querySelector("#bossDamageText");
+
+const supabaseUrl = "https://rsinnvatonswvvvaeila.supabase.co";
+const supabasePublishableKey = "sb_publishable_nevhagAJS7LcGshDxTK0Hw_Qare-apH";
+const supabaseClient = window.supabase
+  ? window.supabase.createClient(supabaseUrl, supabasePublishableKey)
+  : null;
+const browserCrypto = window.crypto || {};
+
+const pk = {
+  clientId: browserCrypto.randomUUID ? browserCrypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+  channel: null,
+  connected: false,
+  roomCode: "",
+  opponent: null,
+  lastSentAt: 0,
+};
 
 const difficulties = {
   easy: {
@@ -218,6 +244,153 @@ function formatTime(seconds) {
   return `${seconds.toFixed(1)}s`;
 }
 
+function normalizeRoomCode(value) {
+  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  return cleaned || Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function phaseLabel(state) {
+  if (!state) return "-";
+  if (state.clearTime) return formatTime(state.clearTime);
+  if (state.phase === "playing") return `${state.timeLeft}s left`;
+  if (state.phase === "ended") return "Not cleared";
+  return "Ready";
+}
+
+function localPkState() {
+  const bosses = getBosses();
+  return {
+    clientId: pk.clientId,
+    roomCode: pk.roomCode,
+    name: game.playerName || getPlayerName(),
+    score: game.score,
+    difficulty: getDifficulty().label,
+    bossIndex: game.bossIndex,
+    bossesDefeated: game.bossesDefeated,
+    totalBosses: bosses.length,
+    timeLeft: game.timeLeft,
+    clearTime: game.clearTime,
+    phase: game.running ? "playing" : game.startedAt ? "ended" : "ready",
+    updatedAt: Date.now(),
+  };
+}
+
+function comparePkResults(localState, opponentState) {
+  if (!opponentState) return "Waiting for opponent";
+  if (localState.phase !== "ended" || opponentState.phase !== "ended") {
+    if (localState.phase === "ended") return "Waiting for result";
+    if (opponentState.phase === "ended") return "Opponent finished";
+    return "Live match";
+  }
+
+  const localCleared = Number.isFinite(localState.clearTime);
+  const opponentCleared = Number.isFinite(opponentState.clearTime);
+  let result = 0;
+
+  if (localCleared && opponentCleared) {
+    result = opponentState.clearTime - localState.clearTime;
+  } else if (localCleared !== opponentCleared) {
+    result = localCleared ? 1 : -1;
+  } else {
+    result = localState.score - opponentState.score;
+  }
+
+  if (result > 0) return "You win";
+  if (result < 0) return "You lose";
+  return "Tie";
+}
+
+function renderOpponent() {
+  const opponent = pk.opponent;
+
+  if (!pk.connected) {
+    opponentTitle.textContent = "No opponent connected";
+    pkOutcome.textContent = "Solo mode";
+    opponentName.textContent = "Waiting";
+    opponentScore.textContent = "0";
+    opponentBosses.textContent = "0 / 0";
+    opponentTime.textContent = "-";
+    return;
+  }
+
+  opponentTitle.textContent = `Room ${pk.roomCode}`;
+  if (!opponent) {
+    pkOutcome.textContent = "Waiting";
+    opponentName.textContent = "Waiting";
+    opponentScore.textContent = "0";
+    opponentBosses.textContent = "0 / 0";
+    opponentTime.textContent = "-";
+    return;
+  }
+
+  opponentName.textContent = opponent.name || "Opponent";
+  opponentScore.textContent = opponent.score || 0;
+  opponentBosses.textContent = `${opponent.bossesDefeated || 0} / ${opponent.totalBosses || 0}`;
+  opponentTime.textContent = phaseLabel(opponent);
+  pkOutcome.textContent = comparePkResults(localPkState(), opponent);
+}
+
+function sendPkState(force = false) {
+  if (!pk.connected || !pk.channel) return;
+
+  const now = Date.now();
+  if (!force && now - pk.lastSentAt < 350) return;
+  pk.lastSentAt = now;
+
+  pk.channel.send({
+    type: "broadcast",
+    event: "state",
+    payload: localPkState(),
+  });
+  renderOpponent();
+}
+
+async function leavePkRoom() {
+  if (pk.channel && supabaseClient) {
+    await supabaseClient.removeChannel(pk.channel);
+  }
+  pk.channel = null;
+  pk.connected = false;
+  pk.opponent = null;
+  pk.roomCode = "";
+  pkStatus.textContent = "Disconnected. Enter a room code to play online.";
+  renderOpponent();
+}
+
+async function connectPkRoom() {
+  if (!supabaseClient) {
+    pkStatus.textContent = "Online PK is unavailable. Supabase could not load.";
+    return;
+  }
+
+  await leavePkRoom();
+  const roomCode = normalizeRoomCode(pkRoomInput.value);
+  pkRoomInput.value = roomCode;
+  pk.roomCode = roomCode;
+  pkStatus.textContent = `Connecting to room ${roomCode}...`;
+
+  pk.channel = supabaseClient.channel(`click-rush-pk-${roomCode}`, {
+    config: { broadcast: { self: false } },
+  });
+
+  pk.channel.on("broadcast", { event: "state" }, ({ payload }) => {
+    if (!payload || payload.clientId === pk.clientId) return;
+    pk.opponent = payload;
+    renderOpponent();
+  });
+
+  pk.channel.subscribe((status) => {
+    if (status === "SUBSCRIBED") {
+      pk.connected = true;
+      pkStatus.textContent = `Connected to room ${roomCode}. Share this code with your opponent.`;
+      sendPkState(true);
+      renderOpponent();
+    } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      pkStatus.textContent = "Could not connect. Try again or use another room code.";
+    }
+  });
+}
+
 function currentBoss() {
   const bosses = getBosses();
   return bosses[Math.min(game.bossIndex, bosses.length - 1)];
@@ -311,6 +484,7 @@ function setDifficulty(difficulty) {
     timeEl.textContent = game.timeLeft;
     resetBosses();
     renderLeaderboard();
+    sendPkState(true);
   }
 }
 
@@ -388,10 +562,12 @@ function startGame() {
   resultPanel.classList.add("hidden");
   overlay.classList.add("hidden");
   playSound("start");
+  sendPkState(true);
 
   game.timerId = setInterval(() => {
     game.timeLeft -= 1;
     timeEl.textContent = game.timeLeft;
+    sendPkState();
     if (game.timeLeft <= 0) endGame();
   }, 1000);
 
@@ -436,6 +612,8 @@ function endGame(reason = "timeout") {
   renderResults(rank, reason);
   overlay.classList.remove("hidden");
   draw();
+  sendPkState(true);
+  renderOpponent();
 }
 
 function drawBackground(width, height) {
@@ -516,6 +694,7 @@ function clickTarget(event) {
     game.score += points;
     const cleared = damageBoss(points);
     scoreEl.textContent = game.score;
+    sendPkState();
     if (cleared) return;
     game.target = randomTarget();
   } else {
@@ -523,6 +702,7 @@ function clickTarget(event) {
     game.score = Math.max(0, game.score - getDifficulty().missPenalty);
     scoreEl.textContent = game.score;
     playSound("miss");
+    sendPkState();
   }
 }
 
@@ -548,8 +728,17 @@ soundButton.addEventListener("click", () => setSoundEnabled(!soundToggle.checked
 difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => setDifficulty(button.dataset.difficulty));
 });
+connectPkButton.addEventListener("click", connectPkRoom);
+leavePkButton.addEventListener("click", leavePkRoom);
+pkRoomInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") connectPkRoom();
+});
+pkRoomInput.addEventListener("input", () => {
+  pkRoomInput.value = pkRoomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+});
 
 restoreSettings();
 renderLeaderboard();
 renderBoss();
+renderOpponent();
 resizeCanvas();

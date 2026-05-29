@@ -1,28 +1,35 @@
 # Click Rush
 
-一个可以直接在浏览器运行的点击 Boss 小游戏。
+A small browser game that runs directly from `index.html` or GitHub Pages.
 
-## 怎么自己运行
+## Run It
 
-双击 `index.html`，或者在浏览器里打开这个文件即可。
+Open `index.html` in a browser, or visit:
 
-## 游戏玩法
+https://hyclzq20042004.github.io/click-rush-game/
 
-- 开始前可以输入玩家名字。
-- 可以选择 Easy、Normal、Hard 三种难度，每个难度有独立排行榜。
-- 可以开启或关闭音效。
-- 点击发光圆点得分并攻击下方 Boss。
-- 圆点越小，分数和伤害越高。
-- 点空会扣分并断掉连击。
-- Boss 被击中时会有受击反馈和伤害数字。
-- 不同难度有不同 Boss 数量，Easy 有 5 个，Normal 有 6 个，Hard 有 6 个。
-- 如果提前打完所有 Boss，游戏会立刻结算，并记录通关时间。
-- 通关记录按完成时间排名，未通关记录只按最终分数显示。
+## Gameplay
 
-## 后期最常见的优化位置
+- Enter a player name before starting.
+- Pick Easy, Normal, or Hard. Each difficulty has its own leaderboard.
+- Click the glowing target to score points and damage the current boss.
+- Missing the target loses points and breaks the combo.
+- Bosses show hit feedback, damage numbers, and health.
+- Clearing every boss ends the run early and records the clear time.
+- Completed runs rank by clear time. Unfinished runs show final score.
+- Sound can be turned on or off.
 
-- 想改游戏时间：打开 `script.js`，搜索 `duration`。
-- 想改 Boss 血量：打开 `script.js`，搜索 `bossRosters`。
-- 想改难度：打开 `script.js`，搜索 `difficulties`。
-- 想改颜色：打开 `style.css`，修改 `--accent`、`--teal` 等颜色。
-- 想改标题：打开 `index.html`，修改 `Click Rush`。
+## Online PK
+
+- Type the same room code on two devices or browser windows.
+- Press `Connect` on both sides.
+- Start a run and both players will see the opponent's name, score, boss progress, and result.
+- If the room code is left empty, the game creates one for you to share.
+
+## Simple Tuning Points
+
+- Game time: edit `duration` in `script.js`.
+- Boss HP: edit `bossRosters` in `script.js`.
+- Difficulty behavior: edit `difficulties` in `script.js`.
+- Colors: edit CSS variables in `style.css`.
+- Page text: edit `index.html`.

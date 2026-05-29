@@ -45,6 +45,15 @@
             <input id="soundToggle" type="checkbox" checked>
             <span>Sound effects</span>
           </label>
+          <div class="field">
+            <span class="label">Online PK</span>
+            <div class="pk-connect">
+              <input id="pkRoomInput" maxlength="12" placeholder="Room code">
+              <button id="connectPkButton" type="button">Connect</button>
+              <button id="leavePkButton" class="ghost-button" type="button">Leave</button>
+            </div>
+            <span id="pkStatus" class="helper-text">Enter the same room code on two devices.</span>
+          </div>
         </div>
         <div id="resultPanel" class="result-panel hidden" aria-label="round result">
           <div>
@@ -82,6 +91,34 @@
       <p>Tip: smaller targets are worth more points.</p>
     </section>
 
+    <section id="opponentPanel" class="opponent-panel" aria-label="online opponent">
+      <div class="opponent-heading">
+        <div>
+          <span class="label">Online PK</span>
+          <h2 id="opponentTitle">No opponent connected</h2>
+        </div>
+        <strong id="pkOutcome">Solo mode</strong>
+      </div>
+      <div class="opponent-grid">
+        <div>
+          <span class="label">Opponent</span>
+          <strong id="opponentName">Waiting</strong>
+        </div>
+        <div>
+          <span class="label">Score</span>
+          <strong id="opponentScore">0</strong>
+        </div>
+        <div>
+          <span class="label">Bosses</span>
+          <strong id="opponentBosses">0 / 0</strong>
+        </div>
+        <div>
+          <span class="label">Time</span>
+          <strong id="opponentTime">-</strong>
+        </div>
+      </div>
+    </section>
+
     <section class="boss-panel" aria-label="boss battle">
       <div id="bossIcon" class="boss-icon" aria-hidden="true"></div>
       <div class="boss-info">
@@ -111,6 +148,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 </body>
 </html>
